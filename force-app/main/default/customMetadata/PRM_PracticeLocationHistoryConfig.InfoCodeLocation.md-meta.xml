@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomMetadata xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <label>Info Code (Location)</label>
+    <protected>false</protected>
+    <values>
+        <field>PRM_Category__c</field>
+        <value xsi:type="xsd:string">Info Codes</value>
+    </values>
+    <values>
+        <field>PRM_SubjectLabel__c</field>
+        <value xsi:type="xsd:string">Info code</value>
+    </values>
+    <values>
+        <field>PRM_ObjectApiName__c</field>
+        <value xsi:type="xsd:string">PRM_InfoCodeAssignment__c</value>
+    </values>
+    <values>
+        <field>PRM_ParentFieldPath__c</field>
+        <value xsi:type="xsd:string">PRM_HealthcareFacility__c</value>
+    </values>
+    <values>
+        <field>PRM_SubjectFieldPath__c</field>
+        <value xsi:type="xsd:string">PRM_InfoCode__r.Name</value>
+    </values>
+    <values>
+        <field>PRM_SortOrder__c</field>
+        <value xsi:type="xsd:double">70</value>
+    </values>
+    <values>
+        <field>PRM_IsActive__c</field>
+        <value xsi:type="xsd:boolean">true</value>
+    </values>
+</CustomMetadata>

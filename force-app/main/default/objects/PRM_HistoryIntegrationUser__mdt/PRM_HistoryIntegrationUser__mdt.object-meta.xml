@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Users whose changes are badged &quot;Integration&quot; in change-history components (e.g. prmPracticeLocationHistory). Needed because integration users cannot be identified by profile: MuleSoft Integration User runs on System Administrator. Users with UserType CloudIntegrationUser or AutomatedProcess are treated as integration automatically.</description>
+    <label>PRM History Integration User</label>
+    <pluralLabel>PRM History Integration Users</pluralLabel>
+    <visibility>Public</visibility>
+</CustomObject>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>64.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>PRM Practice Location Change History</masterLabel>
+    <description
+  >Business-language change history for a Practice Location: practitioners, networks, taxonomies, NPI, info codes, provider features and associations added, removed or updated. Categories configured in PRM_PracticeLocationHistoryConfig__mdt.</description>
+    <targets>
+        <target>lightning__RecordPage</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__RecordPage">
+            <objects>
+                <object>HealthcareFacility</object>
+            </objects>
+            <property
+        name="defaultView"
+        type="String"
+        label="Default View"
+        description="View shown when the component loads. Users can switch at runtime."
+        default="timeline"
+        datasource="timeline,category,table"
+      />
+            <property
+        name="defaultDateRange"
+        type="String"
+        label="Default Date Range"
+        description="Initial date filter in days (30, 90, 365) or all."
+        default="90"
+        datasource="30,90,365,all"
+      />
+            <property
+        name="pageHeight"
+        type="String"
+        label="Component Height"
+        description="CSS max-height for the scrolling area (e.g. 640px, 75vh). Empty = auto-grow."
+        default="720px"
+      />
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

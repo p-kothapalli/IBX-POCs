@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>One record per change-history category shown by the prmPracticeLocationHistory LWC on the Practice Location (HealthcareFacility) record page. Each row names the object whose field history is read, how its records link back to the Practice Location, which record types to include, and which fields describe the record in business language. Add a row to surface a new association; deactivate a row to hide it.</description>
+    <label>PRM Practice Location History Config</label>
+    <pluralLabel>PRM Practice Location History Configs</pluralLabel>
+    <visibility>Public</visibility>
+</CustomObject>

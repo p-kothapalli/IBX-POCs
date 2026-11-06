@@ -1,0 +1,641 @@
+<template>
+  <article class="plh slds-card">
+    <!-- Branded header -->
+    <header class="plh-header">
+      <div class="plh-header-main">
+        <span class="plh-header-icon">
+          <lightning-icon
+            icon-name="utility:clock"
+            variant="inverse"
+            size="small"
+            alternative-text=""
+          ></lightning-icon>
+        </span>
+        <div>
+          <h2 class="plh-title">Change History</h2>
+          <template lwc:if={practiceLocationName}>
+            <p class="plh-subtitle">{practiceLocationName}</p>
+          </template>
+        </div>
+      </div>
+      <div class="plh-header-side">
+        <template lwc:if={lastChange}>
+          <div class="plh-last">
+            <span class="plh-last-label">Last change</span>
+            <span class="plh-last-value">
+              <lightning-formatted-date-time
+                value={lastChange.eventDate}
+                year="numeric"
+                month="short"
+                day="numeric"
+                hour="numeric"
+                minute="2-digit"
+              ></lightning-formatted-date-time>
+              <span class="plh-dot">·</span>{lastChange.actorName}
+            </span>
+          </div>
+        </template>
+        <lightning-button-icon
+          icon-name="utility:refresh"
+          variant="bare-inverse"
+          alternative-text="Refresh"
+          title="Refresh"
+          onclick={handleRefresh}
+        ></lightning-button-icon>
+      </div>
+    </header>
+
+    <div class="plh-body">
+      <template lwc:if={isLoading}>
+        <div class="slds-is-relative plh-loading">
+          <lightning-spinner
+            alternative-text="Loading change history"
+            size="medium"
+          ></lightning-spinner>
+        </div>
+      </template>
+
+      <template lwc:if={errorMessage}>
+        <div class="plh-alert plh-alert_error" role="alert">
+          <lightning-icon
+            icon-name="utility:error"
+            alternative-text="Error"
+            size="x-small"
+            class="plh-alert-icon"
+          ></lightning-icon>
+          <span>Unable to load change history. {errorMessage}</span>
+        </div>
+      </template>
+
+      <template lwc:if={isLoaded}>
+        <!-- KPI tiles: category tiles filter the view -->
+        <div class="plh-kpis" aria-label="Summary for the current filters">
+          <template for:each={kpiTiles} for:item="tile">
+            <div key={tile.key} class="plh-kpi-cell">
+              <template lwc:if={tile.isCounts}>
+                <button
+                  type="button"
+                  class={tile.tileClass}
+                  data-value={tile.key}
+                  aria-pressed={tile.ariaPressed}
+                  onclick={handleKpiClick}
+                >
+                  <span class="plh-kpi-top">
+                    <span class="plh-kpi-icon">
+                      <lightning-icon
+                        icon-name={tile.icon}
+                        size="x-small"
+                        alternative-text=""
+                      ></lightning-icon>
+                    </span>
+                    <span class="plh-kpi-label">{tile.label}</span>
+                  </span>
+                  <span class="plh-kpi-values">
+                    <span class="plh-kpi-added">+{tile.added} added</span>
+                    <span class="plh-kpi-removed">−{tile.removed} removed</span>
+                  </span>
+                </button>
+              </template>
+              <template lwc:else>
+                <div class={tile.tileClass}>
+                  <span class="plh-kpi-top">
+                    <span class="plh-kpi-icon">
+                      <lightning-icon
+                        icon-name={tile.icon}
+                        size="x-small"
+                        alternative-text=""
+                      ></lightning-icon>
+                    </span>
+                    <span class="plh-kpi-label">{tile.label}</span>
+                  </span>
+                  <span class="plh-kpi-values">
+                    <span class="plh-kpi-total">{tile.total}</span>
+                  </span>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+
+        <!-- Category chips -->
+        <div class="plh-chips" role="group" aria-label="Filter by category">
+          <template for:each={categoryChips} for:item="chip">
+            <button
+              key={chip.value}
+              type="button"
+              class={chip.chipClass}
+              data-value={chip.value}
+              aria-pressed={chip.ariaPressed}
+              onclick={handleCategoryChip}
+            >
+              <lightning-icon
+                icon-name={chip.icon}
+                size="xx-small"
+                alternative-text=""
+                class="plh-chip-icon"
+              ></lightning-icon>
+              <span class="plh-chip-label">{chip.label}</span>
+              <span class="plh-chip-count">{chip.count}</span>
+            </button>
+          </template>
+        </div>
+
+        <!-- Filters -->
+        <div class="plh-filters">
+          <div class="plh-filter plh-filter_search">
+            <lightning-input
+              type="search"
+              label="Search"
+              placeholder="Practitioner, network, taxonomy, user, case #…"
+              value={searchTerm}
+              onchange={handleSearch}
+            ></lightning-input>
+          </div>
+          <div class="plh-filter">
+            <lightning-combobox
+              label="Change"
+              value={eventTypeFilter}
+              options={eventTypeOptions}
+              onchange={handleEventTypeChange}
+            ></lightning-combobox>
+          </div>
+          <div class="plh-filter">
+            <lightning-combobox
+              label="When"
+              value={dateRange}
+              options={dateRangeOptions}
+              onchange={handleDateRangeChange}
+            ></lightning-combobox>
+          </div>
+          <div class="plh-filter">
+            <lightning-radio-group
+              name="actorFilter"
+              label="Changed by"
+              type="button"
+              options={actorOptions}
+              value={actorFilter}
+              onchange={handleActorChange}
+            ></lightning-radio-group>
+          </div>
+        </div>
+
+        <div class="plh-toolbar">
+          <lightning-input
+            type="toggle"
+            label="Only adds and removes"
+            checked={addsRemovesOnly}
+            onchange={handleAddsRemovesToggle}
+            message-toggle-active=""
+            message-toggle-inactive=""
+          ></lightning-input>
+          <div class="plh-toolbar-side">
+            <span class="plh-result-count" aria-live="polite"
+              >{resultSummary}</span
+            >
+            <lightning-radio-group
+              name="viewToggle"
+              label="View"
+              variant="label-hidden"
+              type="button"
+              options={viewOptions}
+              value={activeView}
+              onchange={handleViewChange}
+            ></lightning-radio-group>
+          </div>
+        </div>
+
+        <template lwc:if={hasTruncation}>
+          <div class="plh-alert plh-alert_warning" role="status">
+            <lightning-icon
+              icon-name="utility:warning"
+              alternative-text="Warning"
+              size="x-small"
+              class="plh-alert-icon"
+            ></lightning-icon>
+            <span>{truncationMessage}</span>
+          </div>
+        </template>
+
+        <!-- Empty states -->
+        <template lwc:if={hasNoResults}>
+          <div class="plh-empty">
+            <lightning-icon
+              icon-name="utility:search"
+              size="small"
+              alternative-text=""
+            ></lightning-icon>
+            <template lwc:if={hasNoHistoryAtAll}>
+              <p class="plh-empty-title">
+                No tracked changes in recent history.
+              </p>
+              <p class="plh-empty-text">
+                Older changes may be in the archive. Use “Load older changes”
+                below.
+              </p>
+            </template>
+            <template lwc:else>
+              <p class="plh-empty-title">
+                No changes match the current filters.
+              </p>
+              <lightning-button
+                variant="base"
+                label="Show all time"
+                onclick={handleShowAllTime}
+              ></lightning-button>
+            </template>
+          </div>
+        </template>
+
+        <!-- Timeline -->
+        <template lwc:if={isTimelineView}>
+          <template lwc:if={hasResults}>
+            <div class="plh-scroll" style={scrollStyle}>
+              <template for:each={timelineDays} for:item="day">
+                <section key={day.dayLabel} class="plh-day">
+                  <div class="plh-day-head">
+                    <h3 class="plh-day-label">{day.dayLabel}</h3>
+                    <span class="plh-day-count">{day.countLabel}</span>
+                  </div>
+                  <ol class="plh-cards">
+                    <template for:each={day.groups} for:item="group">
+                      <li key={group.key} class={group.cardClass}>
+                        <div class="plh-card-head">
+                          <div class="plh-who">
+                            <template lwc:if={group.isIntegration}>
+                              <span
+                                class="plh-avatar plh-avatar_integration"
+                                aria-hidden="true"
+                              >
+                                <lightning-icon
+                                  icon-name="utility:integration"
+                                  size="x-small"
+                                  variant="inverse"
+                                  alternative-text=""
+                                ></lightning-icon>
+                              </span>
+                            </template>
+                            <template lwc:else>
+                              <span class="plh-avatar" aria-hidden="true"
+                                >{group.actorInitials}</span
+                              >
+                            </template>
+                            <div class="plh-who-text">
+                              <p class="plh-who-name">
+                                <span class="plh-sr">Changed by </span
+                                >{group.actorName}
+                                <template lwc:if={group.isIntegration}>
+                                  <span class="plh-tag plh-tag_integration"
+                                    >Integration</span
+                                  >
+                                </template>
+                                <template lwc:if={group.isArchived}>
+                                  <span class="plh-tag">Archived</span>
+                                </template>
+                              </p>
+                              <p class="plh-who-when">
+                                <span class="plh-sr">Changed on </span>
+                                <lightning-formatted-date-time
+                                  value={group.eventDate}
+                                  weekday="short"
+                                  year="numeric"
+                                  month="short"
+                                  day="numeric"
+                                  hour="numeric"
+                                  minute="2-digit"
+                                ></lightning-formatted-date-time>
+                                <span class="plh-dot">·</span>
+                                <span class="plh-relative"
+                                  >{group.relativeTime}</span
+                                >
+                              </p>
+                            </div>
+                          </div>
+                          <div class="plh-refs">
+                            <template lwc:if={group.caseManagerName}>
+                              <a
+                                class="plh-ref"
+                                href={group.caseManagerUrl}
+                                target="_blank"
+                              >
+                                <span class="plh-ref-label">Case Manager</span>
+                                <span class="plh-ref-value"
+                                  >{group.caseManagerName}</span
+                                >
+                              </a>
+                            </template>
+                            <template lwc:if={group.fhnaticCaseNumber}>
+                              <span class="plh-ref plh-ref_fhnatic">
+                                <span class="plh-ref-label"
+                                  >FHNatic Case #</span
+                                >
+                                <span class="plh-ref-value"
+                                  >{group.fhnaticCaseNumber}</span
+                                >
+                              </span>
+                            </template>
+                          </div>
+                        </div>
+
+                        <div class="plh-card-summary">
+                          <p class="plh-headline">{group.headline}</p>
+                          <div class="plh-cats">
+                            <template
+                              for:each={group.categoryTags}
+                              for:item="tag"
+                            >
+                              <span key={tag.name} class="plh-cat">
+                                <lightning-icon
+                                  icon-name={tag.icon}
+                                  size="xx-small"
+                                  alternative-text=""
+                                ></lightning-icon>
+                                {tag.name}
+                              </span>
+                            </template>
+                          </div>
+                        </div>
+
+                        <ul class="plh-changes">
+                          <template
+                            for:each={group.visibleEvents}
+                            for:item="evt"
+                          >
+                            <li key={evt.id} class="plh-change">
+                              <span class={evt.pillClass}>{evt.eventType}</span>
+                              <div class="plh-change-main">
+                                <a
+                                  href={evt.recordUrl}
+                                  target="_blank"
+                                  class="plh-sentence"
+                                  >{evt.sentence}</a
+                                >
+                                <template lwc:if={evt.hasValues}>
+                                  <p class="plh-values">
+                                    <span class="plh-old"
+                                      >{evt.oldDisplay}</span
+                                    >
+                                    <span class="plh-arrow" aria-hidden="true"
+                                      >→</span
+                                    >
+                                    <span class="plh-new"
+                                      >{evt.newDisplay}</span
+                                    >
+                                  </p>
+                                </template>
+                              </div>
+                              <dl class="plh-dates">
+                                <template lwc:if={evt.recordEffectiveFrom}>
+                                  <div class="plh-date">
+                                    <dt>Effective from</dt>
+                                    <dd>
+                                      <lightning-formatted-date-time
+                                        value={evt.recordEffectiveFrom}
+                                        time-zone="UTC"
+                                        year="numeric"
+                                        month="short"
+                                        day="numeric"
+                                      ></lightning-formatted-date-time>
+                                    </dd>
+                                  </div>
+                                </template>
+                                <template lwc:if={evt.endDate}>
+                                  <div class="plh-date plh-date_end">
+                                    <dt>End date</dt>
+                                    <dd>
+                                      <lightning-formatted-date-time
+                                        value={evt.endDate}
+                                        time-zone="UTC"
+                                        year="numeric"
+                                        month="short"
+                                        day="numeric"
+                                      ></lightning-formatted-date-time>
+                                    </dd>
+                                  </div>
+                                </template>
+                              </dl>
+                            </li>
+                          </template>
+                        </ul>
+                        <template lwc:if={group.isExpandable}>
+                          <button
+                            type="button"
+                            class="plh-link"
+                            data-key={group.key}
+                            aria-expanded={group.ariaExpanded}
+                            onclick={handleToggleGroup}
+                          >
+                            {group.toggleLabel}
+                          </button>
+                        </template>
+                      </li>
+                    </template>
+                  </ol>
+                </section>
+              </template>
+              <template lwc:if={hasMoreGroups}>
+                <div class="plh-more">
+                  <lightning-button
+                    label="Show more changes"
+                    onclick={handleShowMoreGroups}
+                  ></lightning-button>
+                  <span class="plh-more-count">{remainingGroupCount} more</span>
+                </div>
+              </template>
+            </div>
+          </template>
+        </template>
+
+        <!-- By category -->
+        <template lwc:if={isCategoryView}>
+          <template lwc:if={hasResults}>
+            <div class="plh-scroll" style={scrollStyle}>
+              <template for:each={categorySections} for:item="section">
+                <section key={section.category} class="plh-section">
+                  <button
+                    type="button"
+                    class="plh-section-head"
+                    data-value={section.category}
+                    aria-expanded={section.ariaExpanded}
+                    onclick={handleToggleSection}
+                  >
+                    <lightning-icon
+                      icon-name={section.chevron}
+                      size="x-small"
+                      alternative-text=""
+                      class="plh-chevron"
+                    ></lightning-icon>
+                    <span class="plh-section-icon">
+                      <lightning-icon
+                        icon-name={section.icon}
+                        size="x-small"
+                        alternative-text=""
+                      ></lightning-icon>
+                    </span>
+                    <span class="plh-section-title">{section.category}</span>
+                    <span class="plh-section-total">{section.totalLabel}</span>
+                    <span class="plh-section-stats">
+                      <span class="plh-stat plh-stat_add"
+                        >+{section.added} added</span
+                      >
+                      <span class="plh-stat plh-stat_remove"
+                        >−{section.removed} removed</span
+                      >
+                      <span class="plh-stat">{section.updates} updates</span>
+                    </span>
+                  </button>
+                  <template lwc:if={section.isOpen}>
+                    <ul class="plh-rows">
+                      <template for:each={section.rows} for:item="evt">
+                        <li key={evt.id} class="plh-row">
+                          <div class="plh-row-when">
+                            <span class="plh-row-date">
+                              <lightning-formatted-date-time
+                                value={evt.eventDate}
+                                year="numeric"
+                                month="short"
+                                day="numeric"
+                                hour="numeric"
+                                minute="2-digit"
+                              ></lightning-formatted-date-time>
+                            </span>
+                            <span class="plh-relative">{evt.relativeTime}</span>
+                            <span class="plh-row-by"
+                              >by {evt.actorName}
+                              <template lwc:if={evt.isIntegration}>
+                                <span class="plh-tag plh-tag_integration"
+                                  >Integration</span
+                                >
+                              </template>
+                            </span>
+                          </div>
+                          <span class={evt.pillClass}>{evt.eventType}</span>
+                          <div class="plh-change-main">
+                            <a
+                              href={evt.recordUrl}
+                              target="_blank"
+                              class="plh-sentence"
+                              >{evt.sentence}</a
+                            >
+                            <template lwc:if={evt.hasValues}>
+                              <p class="plh-values">
+                                <span class="plh-old">{evt.oldDisplay}</span>
+                                <span class="plh-arrow" aria-hidden="true"
+                                  >→</span
+                                >
+                                <span class="plh-new">{evt.newDisplay}</span>
+                              </p>
+                            </template>
+                          </div>
+                          <dl class="plh-dates">
+                            <template lwc:if={evt.recordEffectiveFrom}>
+                              <div class="plh-date">
+                                <dt>Effective from</dt>
+                                <dd>
+                                  <lightning-formatted-date-time
+                                    value={evt.recordEffectiveFrom}
+                                    time-zone="UTC"
+                                    year="numeric"
+                                    month="short"
+                                    day="numeric"
+                                  ></lightning-formatted-date-time>
+                                </dd>
+                              </div>
+                            </template>
+                            <template lwc:if={evt.endDate}>
+                              <div class="plh-date plh-date_end">
+                                <dt>End date</dt>
+                                <dd>
+                                  <lightning-formatted-date-time
+                                    value={evt.endDate}
+                                    time-zone="UTC"
+                                    year="numeric"
+                                    month="short"
+                                    day="numeric"
+                                  ></lightning-formatted-date-time>
+                                </dd>
+                              </div>
+                            </template>
+                            <template lwc:if={evt.caseManagerName}>
+                              <div class="plh-date">
+                                <dt>Case Manager</dt>
+                                <dd>
+                                  <a href={evt.caseManagerUrl} target="_blank"
+                                    >{evt.caseManagerName}</a
+                                  >
+                                </dd>
+                              </div>
+                            </template>
+                            <template lwc:if={evt.fhnaticCaseNumber}>
+                              <div class="plh-date">
+                                <dt>FHNatic Case #</dt>
+                                <dd class="plh-fhnatic">
+                                  {evt.fhnaticCaseNumber}
+                                </dd>
+                              </div>
+                            </template>
+                          </dl>
+                        </li>
+                      </template>
+                    </ul>
+                    <template lwc:if={section.hasMore}>
+                      <button
+                        type="button"
+                        class="plh-link plh-link_section"
+                        data-value={section.category}
+                        onclick={handleToggleSectionRows}
+                      >
+                        {section.moreLabel}
+                      </button>
+                    </template>
+                  </template>
+                </section>
+              </template>
+            </div>
+          </template>
+        </template>
+
+        <!-- Table -->
+        <template lwc:if={isTableView}>
+          <template lwc:if={hasResults}>
+            <div class="plh-scroll plh-table" style={scrollStyle}>
+              <lightning-datatable
+                key-field="id"
+                data={tableRows}
+                columns={columns}
+                sorted-by={sortedBy}
+                sorted-direction={sortDirection}
+                onsort={handleSort}
+                hide-checkbox-column
+              ></lightning-datatable>
+            </div>
+          </template>
+        </template>
+
+        <template lwc:if={showArchiveButton}>
+          <div class="plh-archive">
+            <lightning-button
+              label="Load older changes (archive)"
+              icon-name="utility:archive"
+              onclick={handleLoadArchive}
+              disabled={archiveLoading}
+            ></lightning-button>
+            <template lwc:if={archiveLoading}>
+              <span class="plh-more-count">Loading archive…</span>
+            </template>
+          </div>
+        </template>
+
+        <div class="plh-footnotes">
+          <p>
+            Records deleted outright may not appear. Practitioner specialty at a
+            location is not history-tracked.
+          </p>
+          <p>
+            Practitioner-level network and taxonomy changes at this location are
+            planned after the POC.
+          </p>
+        </div>
+      </template>
+    </div>
+  </article>
+</template>
